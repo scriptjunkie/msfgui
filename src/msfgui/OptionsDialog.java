@@ -13,9 +13,6 @@ public class OptionsDialog extends javax.swing.JDialog {
 		setVisible(true);
 		return command;
 	}
-	public String toString(){
-		return getCommand();
-	}
 
     /** Creates new form OptionsDialog */
     public OptionsDialog(java.awt.Frame parent, String title, boolean modal) {

@@ -21,9 +21,9 @@ public class DbConnectDialog extends OptionsDialog {
 
 	//Opens dialog to get options
 	public static boolean connect(Frame parent, RpcConnection rpcConn){
-		if(isConnected(rpcConn))
-			return true;
 		DbConnectDialog cd = new DbConnectDialog(parent, rpcConn, true);
+		if(cd.tryConnect())
+			return true;
 		cd.setVisible(true);
 		return cd.success;
 	}

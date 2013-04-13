@@ -41,8 +41,12 @@ public class RpcAction implements ActionListener {
 	/** prepare() is provided to prepare state of action handler
 	 * such as preparing a command that will be run on all selected sessions. */
 	public void prepare() throws Exception{
-		if(commandGenerator != null)
-			command = commandGenerator.toString();
+		if(commandGenerator != null){
+			if(commandGenerator instanceof OptionsDialog)
+				command = ((OptionsDialog)commandGenerator).getCommand();
+			else
+				command = commandGenerator.toString();
+		}
 	}
 	/** action() with no args provided as an exception-handling action listener. */
 	public void action() throws Exception{

@@ -497,7 +497,7 @@ public class MeterpFileBrowser extends MsfFrame {
 		try{
 			String currentDir = addressField.getText();
 			rpcConn.execute("session.meterpreter_script", session.get("id"),
-				new SearchDwldOptionsDialog(this, currentDir).toString());
+				new SearchDwldOptionsDialog(this, currentDir).getCommand());
 			setVisible(false);
 			dispose();
 

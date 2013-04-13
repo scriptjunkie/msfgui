@@ -478,6 +478,7 @@ nameloop:	for (int i = 0; i < names.length; i++) {
 				} catch (MsfException ex) {
 					statusAnimationLabel.setText("Error getting module lists. " + ex);
 				}
+				MsfFrame.updateSizes(getFrame());
 				return null;
 			}
 
@@ -1877,7 +1878,10 @@ nameloop:	for (int i = 0; i < names.length; i++) {
 		menuItem.setName(name);
 		menuItem.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent evt) {
-				runOnAllMeterpreters("run "+action.toString(),name,statusMessageLabel);
+				if(action instanceof OptionsDialog)
+					runOnAllMeterpreters("run "+((OptionsDialog)action).getCommand(),name,statusMessageLabel);
+				else
+					runOnAllMeterpreters("run " + action.toString(), name, statusMessageLabel);
 			}
 		});
 		menuRunAllMeterp.add(menuItem);
