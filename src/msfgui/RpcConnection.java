@@ -266,7 +266,7 @@ public abstract class RpcConnection {
 				// Don't fork cause we'll check if it dies
 				String rpcType = "Basic";
 				java.util.List args = new java.util.ArrayList(java.util.Arrays.asList(new String[]{
-						"msfrpcd","-f","-P",defaultPass,"-t","Msg","-U",defaultUser,"-a","127.0.0.1",
+						"msfrpcd","-f","-P",defaultPass,"-U",defaultUser,"-a","0.0.0.0",
 						"-p",Integer.toString(defaultPort)}));
 				if(!defaultSsl)
 					args.add("-S");
@@ -285,6 +285,7 @@ public abstract class RpcConnection {
 				//Connect to started daemon
 				setMessage("Started msfrpcd. Connecting to new msfrpcd...");
 				boolean connected = false;
+				int timeoutTries = 0;
 				for (int tries = 0; tries < 10000; tries++) { //it usually takes a minute to get started
 
 					try{ //unfortunately this is the only direct way to check if process has terminated
@@ -302,15 +303,21 @@ public abstract class RpcConnection {
 						if(mex.getMessage().toLowerCase().contains("authentication error")){
 							mex.printStackTrace();
 							setMessage("Cannot connect to started msfrpcd.");
+							proc.destroy();
 							throw mex;
 						}else if(mex.getMessage().toLowerCase().contains("connection reset")){
 							mex.printStackTrace();
 							setMessage("Connection reset.");
+							proc.destroy();
 							throw mex;
 						}else if(mex.getMessage().toLowerCase().contains("timed out")){
 							mex.printStackTrace();
 							setMessage("Timeout.");
-							throw mex;
+							timeoutTries++;
+							if(timeoutTries > 5){ //this can happen legitimately
+								proc.destroy();
+								throw mex;
+							}
 						}
 					}
 					try {
