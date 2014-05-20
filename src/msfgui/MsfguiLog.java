@@ -59,17 +59,17 @@ public class MsfguiLog {
 		try {
 			if (methodName.startsWith("session.")) {
 				if (methodName.endsWith("_write")) 
-					logConsole(params[0].toString(), params[1].toString(), true);
+					logConsole(params[0], params[1].toString(), true);
 				else if (methodName.endsWith("_run_single"))
-					logConsole(params[0].toString(), params[1].toString(), true);
+					logConsole(params[0], params[1].toString(), true);
 				else if (methodName.endsWith("_script"))
-					logConsole(params[0].toString(), "run " + params[1].toString(), true);
+					logConsole(params[0], "run " + params[1].toString(), true);
 				else if (methodName.endsWith("_upgrade"))
 					activityLog.add(now() + " Session " + params[0] + " upgrade initiated.");
 			} else if (methodName.equals("module.execute")) {
 				activityLog.add(now() + "  " + params[0] + " " + params[1] + " executed with options " + params[2]);
 			} else if (methodName.equals("console.write")) {
-				logConsole("Console " + params[0].toString(), params[1].toString(), true);
+				logConsole("Console " + params[0], params[1].toString(), true);
 			} else if (methodName.equals("console.destroy")) {
 				activityLog.add(now() + " Console " + params[0] + " destroyed.");
 			} else if (methodName.equals("plugin.load")) {
@@ -102,13 +102,13 @@ public class MsfguiLog {
 			} else if (methodName.equals("console.read")) {
 				logConsole("Console " + params[0], new String(RpcConnection.getData((Map)result)), false);
 			} else if (methodName.startsWith("session.") && methodName.endsWith("_read")) {
-				logConsole(params[0].toString(), new String(RpcConnection.getData((Map)result)), false);
+				logConsole(params[0], new String(RpcConnection.getData((Map)result)), false);
 			}
 		} catch (MsfException mex) {
 		}
 	}
 	/** Record console communication */
-	public void logConsole(String sessionId, String message, boolean sending){
+	public void logConsole(Object sessionId, String message, boolean sending){
 		Map session = (Map)sessions.get(sessionId);
 		if(session == null || message.length() == 0)
 			return;
