@@ -51,6 +51,21 @@ public class MainFrame extends FrameView {
 		sessionsTableModel = null;
 		sessionWindowMap = new HashMap();
 
+		//"Factory reset" menu
+		factoryReset = new JMenuItem("Factory reset");
+		factoryReset.addActionListener(new ActionListener(){
+			public void actionPerformed(ActionEvent ae) {
+				if(JOptionPane.showConfirmDialog(getFrame(), "This will reset ALL msfgui preferences and history.\n"
+						+ "Are you sure?", "Factory reset", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE)
+						== JOptionPane.YES_OPTION){
+					MsfguiApp.getPropertiesNode().clear();
+					MsfguiApp.savePreferences();
+					JOptionPane.showMessageDialog(getFrame(), "Restart msfgui to see changes.", "Restart required", JOptionPane.INFORMATION_MESSAGE);
+				}
+			}
+		});
+		this.helpMenu.add(factoryReset);
+
 		//Set up action for starting RPC
 		startRpcMenuItem.setAction(getContext().getActionMap(this).get("startRpc"));
 		startRpcMenuItem.setMnemonic('S');
@@ -1981,4 +1996,5 @@ nameloop:	for (int i = 0; i < names.length; i++) {
 	private final Icon[] busyIcons = new Icon[15];
 	private int busyIconIndex = 0;
 	private JDialog aboutBox;
+    private JMenuItem factoryReset;
 }
