@@ -20,12 +20,12 @@ import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import org.jdesktop.application.Application;
-import org.jdesktop.application.SingleFrameApplication;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import org.jdesktop.application.Application;
+import org.jdesktop.application.SingleFrameApplication;
 import org.w3c.dom.Document;
 
 /**
@@ -58,8 +58,13 @@ public class MsfguiApp extends SingleFrameApplication {
 			@Override
 			public void run() {
 				savePreferences();
+				try{
+					MsfguiLog.defaultLog.save();
+				}catch(IOException iox){//nothing you can do
+				}
 			}
 		});
+		fileChooser = new JFileChooser();
 	}
 	public static void showMessage(java.awt.Component parent, Object message){
 		String msg = message.toString();
@@ -88,6 +93,41 @@ public class MsfguiApp extends SingleFrameApplication {
 				//epic fail
 			}
 		}
+	}
+
+	/**
+	 * Finds or asks the user for the base path of Metasploit on Windows.
+	 */
+	static String getBase() throws IOException {
+		if (propRoot.containsKey("BASE") && (new File(propRoot.get("BASE") + "\\apps\\pro")).isDirectory())
+			return propRoot.get("BASE").toString();
+		if (new File("C:\\metasploit\\apps\\pro\\").isDirectory()){
+			propRoot.put("BASE", "C:\\metasploit\\");
+		}else if (new File("/opt/metasploit/apps/pro/").isDirectory()){
+			propRoot.put("BASE", "/opt/metasploit/");
+		}else{
+			if(JOptionPane.showConfirmDialog(null,
+					  "Cannot find metasploit install directory (usually C:\\metasploit \n"
+					+ "on Windows or /opt/metasploit on Linux). If you have not installed \n"
+					+ "an updated version of metasploit, go to http://metasploit.com/download\n"
+					+ " to get an updated copy. Otherwise, click yes to choose a different \n"
+					+ "install directory.") == JOptionPane.YES_OPTION){
+				fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+				fileChooser.showOpenDialog(null);
+				fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+				//Now verify
+				if((new File(fileChooser.getSelectedFile().getCanonicalPath()+"/apps/pro")).isDirectory()){
+					MsfguiApp.getPropertiesNode().put("BASE", fileChooser.getSelectedFile().getCanonicalPath());
+				} else {
+					if(JOptionPane.showConfirmDialog(null, "Folder might not be valid. Use anyway?") == JOptionPane.YES_OPTION){
+						MsfguiApp.getPropertiesNode().put("BASE", fileChooser.getSelectedFile().getCanonicalPath());
+					}
+				}
+			}else{
+				return "";
+			}
+		}
+		return propRoot.get("BASE").toString();
 	}
 
 	/**
@@ -129,37 +169,41 @@ public class MsfguiApp extends SingleFrameApplication {
 	/** Application helper to launch msfrpcd or msfencode, etc. */
 	public static Process startMsfProc(String[] args) throws MsfException {
 		String msfCommand = args[0];
-		String prefix;
-		try{
-			prefix = getPropertiesNode().get("commandPrefix").toString();
-		}catch(Exception ex){
-			prefix = "";
-		}
 		Process proc;
 		String[] winArgs = null;
 		try {
-			args[0] = prefix + msfCommand;
+			args[0] = msfCommand;
 			proc = Runtime.getRuntime().exec(args);
 		} catch (Exception ex1) {
 			try {
 				proc = Runtime.getRuntime().exec(args);
 			} catch (IOException ex2) {
-				try {
+				try { //Try on Windows
 					winArgs = new String[args.length + 3];
 					System.arraycopy(args, 0, winArgs, 3, args.length);
 					winArgs[0] = "cmd";
 					winArgs[1] = "/c";
 					winArgs[2] = "ruby.exe";
 					winArgs[3] = msfCommand;
-					proc = Runtime.getRuntime().exec(winArgs);
+					ProcessBuilder p = new ProcessBuilder();
+					String path = "PATH"; //Gotta figure out how it's capitalized
+					for(Object o : p.environment().keySet())
+						if(o.toString().toLowerCase().equals("path"))
+							path = o.toString();
+					p.environment().put("BASE", getBase() + "\\");
+					p.environment().put(path, getBase() + "\\ruby\\bin"+
+							File.pathSeparator + getBase() + "\\java\\bin"+
+							File.pathSeparator + getBase() + "\\tools"+
+							File.pathSeparator + getBase() + "\\nmap" + 
+							File.pathSeparator + p.environment().get(path));
+					p.environment().put("MSF_DATABASE_CONFIG", getBase() + "\\config\\database.yml");
+					p.environment().put("MSFCONSOLE_OPTS", "-e production -y \"" + getBase() + "\\apps\\pro\\ui\\config\\database.yml\"");
+					p.environment().put("BUNDLE_GEMFILE", getBase() + "\\apps\\pro\\ui\\Gemfile");
+					p.directory(new File(getBase()+"\\apps\\pro\\msf3"));
+					p.command(winArgs);
+					proc = p.start();
 				} catch (IOException ex4){
-					try {
-						File dir = new File(prefix);
-						winArgs[3] = msfCommand;
-						proc = Runtime.getRuntime().exec(winArgs, null, dir);
-					} catch (IOException ex7) {
-						throw new MsfException("Executable not found for "+msfCommand);
-					}
+					throw new MsfException("Executable not found for "+msfCommand);
 				}
 			}
 		}
@@ -223,24 +267,6 @@ public class MsfguiApp extends SingleFrameApplication {
 		}
 		return null;
 	}
-	/**
-	 * Finds the path to the root of the metasploit tree (the msf3 folder this jar is being run out of)
-	 * @return A File object pointing to the directory at the root of the metasploit tree
-	 * @throws MsfException if this jar file has been moved or the containing directory structure has been moved.
-	 */
-	/*
-	public static File getMsfRoot() throws MsfException{
-		try{
-			File f = new File(MsfguiApp.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
-			File parent = f.getParentFile();
-			File grandparent = parent.getParentFile();
-			if(f.getName().equals("msfgui.jar") && parent.getName().equals("gui") &&  grandparent.getName().equals("data"))
-				return grandparent.getParentFile();
-		}catch(java.net.URISyntaxException urisex){
-			urisex.printStackTrace();
-		}
-		throw new MsfException("Cannot find path.");
-	}*/
 
 	/** Adds a module run to the recent modules list */
 	public static void addRecentModule(final List args, final RpcConnection rpcConn, final MainFrame mf) {

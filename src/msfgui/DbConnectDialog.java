@@ -3,6 +3,7 @@ package msfgui;
 import java.awt.Frame;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -230,8 +231,9 @@ public class DbConnectDialog extends OptionsDialog {
 		try{
 			Scanner s;
 			try{
-				s = new Scanner(new File(System.getenv("BASE")+"config/database.yml"));
-			} catch (FileNotFoundException fnfox){
+				s = new Scanner(new File(MsfguiApp.getBase()+"/apps/pro/ui/config/database.yml"));
+			} catch (IOException iox){
+				iox.printStackTrace();
 				s = new Scanner(new File("/opt/metasploit/apps/pro/ui/config/database.yml"));
 			}
 			String token = s.next();

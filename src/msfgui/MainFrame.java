@@ -115,7 +115,6 @@ public class MainFrame extends FrameView {
 		setupPopupMenus();
 		if(rpcConn != null)
 			handleNewRpcConnection();
-		MsfguiApp.fileChooser = new JFileChooser();
 		getFrame().addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent we) {
 				if(!MsfguiApp.shuttingDown && !confirmStop())

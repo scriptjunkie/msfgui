@@ -60,7 +60,8 @@ public class OpenConnectionDialog extends javax.swing.JDialog {
 		Map root = MsfguiApp.getPropertiesNode();
 		fillDefault(root.get("username"),usernameField);
 		fillDefault(root.get("host"),hostField);
-		fillDefault(root.get("port"),portField);
+		if(root.containsKey("port") && !root.get("port").toString().equals("3790")) //don't interfere with default Metasploit
+			fillDefault(root.get("port"),portField);
 		sslBox.setSelected(Boolean.TRUE.equals(root.get("ssl")));
 		disableDbButton.setSelected(Boolean.TRUE.equals(root.get("disableDb")));
 	}
@@ -125,17 +126,27 @@ public class OpenConnectionDialog extends javax.swing.JDialog {
 		}
 		//Try service token on default 3790
 		BufferedReader fin = null;
-		try{
-			fin = new BufferedReader(new FileReader("/opt/metasploit/apps/pro/engine/tmp/servicekey.txt"));
+		try{//Init base path if necessary
+			if(System.getProperty("os.name").toLowerCase().contains("windows"))
+				MsfguiApp.getBase();
+			//Get path to servicekey
+			String serviceKeyPath = "/opt/metasploit/apps/pro/engine/tmp/servicekey.txt";
+			if(System.getProperty("os.name").toLowerCase().contains("windows"))
+				serviceKeyPath = MsfguiApp.getPropertiesNode().get("BASE") + "\\apps\\pro\\engine\\tmp\\servicekey.txt";
+			//open servicekey and try connecting
+			System.out.println(serviceKeyPath);
+			fin = new BufferedReader(new FileReader(serviceKeyPath));
 			RpcConnection rpc = RpcConnection.getConn("", fin.readLine().toCharArray(), "localhost", 3790, true);
+			//if it worked, give user the option to connect
 			if(JOptionPane.showConfirmDialog(null, "Connect to local rpcd?") == JOptionPane.YES_OPTION)
 				return rpc;
 		}catch(IOException iox){//file not found/unreadable/
-			if(JOptionPane.showConfirmDialog(null, 
+			if(JOptionPane.showConfirmDialog(null,
 					  "Cannot open service key. If metasploit is installed\n"
 					+ "as a service, try running msfgui as root. Do you want\n"
 					+ "to connect to a different service or start a new one?\n") != JOptionPane.YES_OPTION)
 				System.exit(0);
+		}catch(MsfException mx){//local rpc not running - ignore
 		}
 		//Darn. open the gui anyway
 		OpenConnectionDialog diag = new OpenConnectionDialog(true, mainframe);
@@ -382,7 +393,9 @@ public class OpenConnectionDialog extends javax.swing.JDialog {
 
 	private void startNewButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_startNewButtonActionPerformed
 		//Setup defaults
-		RpcConnection.defaultUser = usernameField.getText();
+		RpcConnection.defaultUser = usernameField.getText().trim();
+		if(RpcConnection.defaultUser.length() == 0) //make sure we don't try to use a blank username
+			RpcConnection.defaultUser = "msf";
 		if(passwordField.getPassword().length > 0)
 			RpcConnection.defaultPass = new String(passwordField.getPassword());
 		if(hostField.getText().length() > 0)
@@ -397,21 +410,28 @@ public class OpenConnectionDialog extends javax.swing.JDialog {
 
 	private void pathButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pathButtonActionPerformed
 		File dir =new File("/opt/metasploit3/msf3/");
-		if(dir.isDirectory())
+		if(dir.isDirectory()){
 			MsfguiApp.fileChooser.setCurrentDirectory(dir);
+		}else{
+			dir = new File("C:\\metasploit");
+			if(dir.isDirectory())
+				MsfguiApp.fileChooser.setCurrentDirectory(dir);
+		}
 		if(MsfguiApp.getPropertiesNode().get("commandPrefix") != null)
 			dir =new File(MsfguiApp.getPropertiesNode().get("commandPrefix").toString());
 		if(dir.isDirectory())
 			MsfguiApp.fileChooser.setCurrentDirectory(dir);
-		if (MsfguiApp.fileChooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION)
+		MsfguiApp.fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		int result = MsfguiApp.fileChooser.showOpenDialog(this);
+		MsfguiApp.fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+		if (result != JFileChooser.APPROVE_OPTION)
 			return;
-		MsfguiApp.getPropertiesNode().put("commandPrefix",
-				MsfguiApp.fileChooser.getCurrentDirectory().getPath()+File.separator);
-		MsfguiApp.showMessage(this, "Will now try running \n"
-				+MsfguiApp.getPropertiesNode().get("commandPrefix")+"msfrpcd\n"
-				+"and "+ MsfguiApp.getPropertiesNode().get("commandPrefix")+"ruby /msf3/msfrpcd\n"
-				+ "when starting new daemon. Note: for the second to work on Windows,\n"
-				+ "use something like Framework3\\bin not Framework3\\msf3");
+		if(!(new File(MsfguiApp.fileChooser.getSelectedFile().getPath()+"/apps/pro")).isDirectory()){
+			MsfguiApp.showMessage(this, "Uh oh! That's not a valid metasploit folder.\n"
+					+ "The right metasploit folder should have an apps subfolder.");
+		}
+		MsfguiApp.getPropertiesNode().put("BASE",
+				MsfguiApp.fileChooser.getSelectedFile().getPath());
 	}//GEN-LAST:event_pathButtonActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
