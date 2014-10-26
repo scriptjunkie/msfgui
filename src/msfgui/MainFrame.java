@@ -539,8 +539,8 @@ nameloop:	for (int i = 0; i < names.length; i++) {
         lootsTable = new MsfTable(rpcConn,new String [] {"Host", "Service", "Ltype", "Ctype", "Data", "Created", "Updated", "Name", "Info"
         }, "loots", new String[]{"host", "service", "ltype", "ctype", "data", "created_at", "updated_at", "name", "info"});
         credsPane = new javax.swing.JScrollPane();
-        credsTable = new MsfTable(rpcConn, new String [] {"Host", "Updated", "Port", "Proto", "Sname", "Type", "User", "Pass", "Active"
-        }, "creds", new String[]{"host", "updated_at", "port", "proto", "sname", "type", "user", "pass", "active"});
+        credsTable = new MsfTable(rpcConn, new String [] {"Host", "Updated", "Port", "Proto", "Sname", "Type", "User", "Pass"
+        }, "creds", new String[]{"host", "updated_at", "port", "proto", "sname", "type", "user", "pass"});
         menuBar = new javax.swing.JMenuBar();
         javax.swing.JMenu fileMenu = new javax.swing.JMenu();
         connectRpcMenuItem = new javax.swing.JMenuItem();
