@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -16,9 +17,9 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import org.msgpack.MessagePack;
-import org.msgpack.MessagePackObject;
-import org.msgpack.Packer;
-import org.msgpack.object.*;
+import org.msgpack.packer.Packer;
+import org.msgpack.unpacker.Unpacker;
+import org.msgpack.type.*;
 
 /**
  * Implements an RPC backend using the MessagePack interface
@@ -68,43 +69,43 @@ public class MsgRpc extends RpcConnection {
 	 * @param src MessagePack response
 	 * @return decoded object
 	 */
-	private static Object unMsg(Object src){
+	private static Object unMsg(Value src){
 		Object out = src;
-		if(src instanceof ArrayType){
-			List l = ((ArrayType)src).asList();
+		if(src.isArrayValue()){
+			ArrayValue l = src.asArrayValue();
 			List outList = new ArrayList(l.size());
 			out = outList;
-			for(Object o : l)
+			for(Value o : l)
 				outList.add(unMsg(o));
-		}else if(src instanceof BooleanType){
-			out = ((BooleanType)src).asBoolean();
-		}else if(src instanceof FloatType){
-			out = ((FloatType)src).asFloat();
-		}else if(src instanceof IntegerType){
-			out = ((IntegerType)src).asInt();
-		}else if(src instanceof MapType){
-			Set ents = ((MapType)src).asMap().entrySet();
+		}else if(src.isBooleanValue()){
+			out = src.asBooleanValue().getBoolean();
+		}else if(src.isFloatValue()){
+			out = src.asFloatValue().getFloat();
+		}else if(src.isIntegerValue()) {
+			out = src.asIntegerValue().getInt();
+		}else if(src.isMapValue()){
+			Set<Entry<Value,Value>> ents = src.asMapValue().entrySet();
 			out = new HashMap();
-			for (Object ento : ents){
-				Map.Entry ent = (Map.Entry)ento;
+			for (Entry<Value,Value> ent : ents){
 				Object key = unMsg(ent.getKey());
-				Object val = ent.getValue();
+				Value val = ent.getValue();
+				Object valo;
 				// Hack - keep bytes of generated or encoded payload
-				if(ents.size() == 1 && val instanceof RawType &&
+				if(ents.size() == 1 && val.isRawValue() &&
 						(key.equals("payload") || key.equals("encoded")))
-					val = ((RawType)val).asByteArray();
+					valo = val.asRawValue().getByteArray();
 				else
-					val = unMsg(val);
-				((Map)out).put(key, val);
+					valo = unMsg(val);
+				((Map)out).put(key, valo);
 			}
 			if(((Map)out).containsKey("error") && ((Map)out).containsKey("error_class")){
 				System.out.println(((Map)out).get("error_backtrace"));
 				throw new MsfException(((Map)out).get("error_message").toString());
 			}
-		}else if(src instanceof NilType){
+		}else if(src.isNilValue()){
 			out = null;
-		}else if(src instanceof RawType){
-			out = ((RawType)src).asString();
+		}else if(src.isRawValue()){
+			out = src.asRawValue().getString();
 		}
 		return out;
 	}
@@ -118,19 +119,22 @@ public class MsgRpc extends RpcConnection {
 		huc.setRequestProperty("Content-Type", "binary/message-pack");
 		huc.setReadTimeout(timeout);
 		OutputStream os = huc.getOutputStream();
-		Packer pk = new Packer(os);
+		MessagePack mp = new MessagePack();
+		Packer pk = mp.createPacker(os);
 
-		pk.packArray(args.length+1);
-		pk.pack(methodName);
+		pk.writeArrayBegin(args.length+1);
+		pk.write(methodName);
 		for(Object o : args)
-			pk.pack(o);
+			pk.write(o);
+		pk.writeArrayEnd();
 		os.close();
 	}
 
 	/** Receives an RPC response and converts to an object */
 	protected Object readResp() throws Exception{
 		InputStream is = huc.getInputStream();
-		MessagePackObject mpo = MessagePack.unpack(is);
-		return unMsg(mpo);
+		MessagePack mp = new MessagePack();
+		Value val = mp.createUnpacker(is).readValue();
+		return unMsg(val);
 	}
 }
