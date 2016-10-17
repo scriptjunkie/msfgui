@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -105,6 +106,8 @@ public class MsfguiApp extends SingleFrameApplication {
 			propRoot.put("BASE", "C:\\metasploit\\");
 		}else if (new File("/opt/metasploit/apps/pro/").isDirectory()){
 			propRoot.put("BASE", "/opt/metasploit/");
+		}else if(new File("C:\\metasploit-framework").isDirectory()){
+			propRoot.put("BASE", "C:\\metasploit-framework\\");
 		}else{
 			if(JOptionPane.showConfirmDialog(null,
 					  "Cannot find metasploit install directory (usually C:\\metasploit \n"
@@ -116,7 +119,8 @@ public class MsfguiApp extends SingleFrameApplication {
 				fileChooser.showOpenDialog(null);
 				fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 				//Now verify
-				if((new File(fileChooser.getSelectedFile().getCanonicalPath()+"/apps/pro")).isDirectory()){
+				if((new File(fileChooser.getSelectedFile().getCanonicalPath()+"/apps/pro")).isDirectory()
+						|| (new File(fileChooser.getSelectedFile().getCanonicalPath()+"/bin/msfrpcd.bat")).isDirectory()){
 					MsfguiApp.getPropertiesNode().put("BASE", fileChooser.getSelectedFile().getCanonicalPath());
 				} else {
 					if(JOptionPane.showConfirmDialog(null, "Folder might not be valid. Use anyway?") == JOptionPane.YES_OPTION){
@@ -170,15 +174,20 @@ public class MsfguiApp extends SingleFrameApplication {
 	public static Process startMsfProc(String[] args) throws MsfException {
 		String msfCommand = args[0];
 		Process proc;
-		String[] winArgs = null;
+		String[] winArgs;
 		try {
-			args[0] = msfCommand;
+			System.out.println(Arrays.toString(args));
 			proc = Runtime.getRuntime().exec(args);
 		} catch (Exception ex1) {
-			try {
-				proc = Runtime.getRuntime().exec(args);
-			} catch (IOException ex2) {
-				try { //Try on Windows
+			try { //Try on Windows
+				winArgs = new String[args.length];
+				System.arraycopy(args, 0, winArgs, 0, args.length);
+				winArgs[0] = getBase() + "bin\\" + args[0] + ".bat";
+				System.out.println(Arrays.toString(winArgs));
+				proc = Runtime.getRuntime().exec(winArgs);
+			} catch (IOException ex4) {
+				ex4.printStackTrace();
+				try {
 					winArgs = new String[args.length + 3];
 					System.arraycopy(args, 0, winArgs, 3, args.length);
 					winArgs[0] = "cmd";
@@ -187,23 +196,26 @@ public class MsfguiApp extends SingleFrameApplication {
 					winArgs[3] = msfCommand;
 					ProcessBuilder p = new ProcessBuilder();
 					String path = "PATH"; //Gotta figure out how it's capitalized
-					for(Object o : p.environment().keySet())
-						if(o.toString().toLowerCase().equals("path"))
+					for (Object o : p.environment().keySet()) {
+						if (o.toString().toLowerCase().equals("path")) {
 							path = o.toString();
+						}
+					}
 					p.environment().put("BASE", getBase() + "\\");
-					p.environment().put(path, getBase() + "\\ruby\\bin"+
-							File.pathSeparator + getBase() + "\\java\\bin"+
-							File.pathSeparator + getBase() + "\\tools"+
-							File.pathSeparator + getBase() + "\\nmap" + 
-							File.pathSeparator + p.environment().get(path));
+					p.environment().put(path, getBase() + "\\ruby\\bin"
+							+ File.pathSeparator + getBase() + "\\java\\bin"
+							+ File.pathSeparator + getBase() + "\\tools"
+							+ File.pathSeparator + getBase() + "\\nmap"
+							+ File.pathSeparator + p.environment().get(path));
 					p.environment().put("MSF_DATABASE_CONFIG", getBase() + "\\config\\database.yml");
 					p.environment().put("MSFCONSOLE_OPTS", "-e production -y \"" + getBase() + "\\apps\\pro\\ui\\config\\database.yml\"");
 					p.environment().put("BUNDLE_GEMFILE", getBase() + "\\apps\\pro\\ui\\Gemfile");
-					p.directory(new File(getBase()+"\\apps\\pro\\msf3"));
+					p.directory(new File(getBase() + "\\apps\\pro\\msf3"));
 					p.command(winArgs);
+					System.out.println(Arrays.toString(winArgs));
 					proc = p.start();
-				} catch (IOException ex4){
-					throw new MsfException("Executable not found for "+msfCommand);
+				} catch (IOException ex5) {
+					throw new MsfException("Executable not found for " + msfCommand);
 				}
 			}
 		}
