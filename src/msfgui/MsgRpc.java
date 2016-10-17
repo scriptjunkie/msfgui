@@ -18,7 +18,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import org.msgpack.MessagePack;
 import org.msgpack.packer.Packer;
-import org.msgpack.unpacker.Unpacker;
 import org.msgpack.type.*;
 
 /**
